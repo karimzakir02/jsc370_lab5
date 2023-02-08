@@ -205,9 +205,9 @@ median_stations <- data %>%
 
 
 ```{r}
-met_avg_lz %>% 
-  filter(USAFID )
+median_stations
 ```
+
 
 Knit the document, commit your changes, and save it on GitHub. Don't forget to add `README.md` to the tree, the first time you render it.
 

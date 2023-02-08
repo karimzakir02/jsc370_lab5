@@ -299,24 +299,19 @@ median_stations <- data %>%
 ```
 
 ``` r
-met_avg_lz %>% 
-  filter(USAFID )
+median_stations
 ```
 
-    ## Source: local data table [1,595 x 4]
-    ## Call:   `_DT1`[, .(temp = mean(temp, na.rm = TRUE), wind.sp = mean(wind.sp, 
-    ##     na.rm = TRUE), atm.press = mean(atm.press, na.rm = TRUE)), 
-    ##     keyby = .(USAFID)][(USAFID)]
+    ## Source: local data table [3 x 3]
+    ## Call:   unique(`_DT2`[, .(USAFID, lon, lat)])[USAFID %in% c(median_temp_station, 
+    ##     median_wind_station, median_press_station)][c(1, 2, 3)[between(c(1, 
+    ##     2, 3), -.N, .N)]]
     ## 
-    ##   USAFID  temp wind.sp atm.press
-    ##    <int> <dbl>   <dbl>     <dbl>
-    ## 1     NA    NA      NA        NA
-    ## 2     NA    NA      NA        NA
-    ## 3     NA    NA      NA        NA
-    ## 4     NA    NA      NA        NA
-    ## 5     NA    NA      NA        NA
-    ## 6     NA    NA      NA        NA
-    ## # ... with 1,589 more rows
+    ##   USAFID   lon   lat
+    ##    <int> <dbl> <dbl>
+    ## 1 720458 -82.6  37.8
+    ## 2 720929 -92.0  45.5
+    ## 3 722238 -85.7  31.4
     ## 
     ## # Use as.data.table()/as.data.frame()/as_tibble() to access results
 
