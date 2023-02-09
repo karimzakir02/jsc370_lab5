@@ -161,6 +161,19 @@ library(mgcv)
     ## This is mgcv 1.8-36. For overview type 'help("mgcv-package")'.
 
 ``` r
+library(purrr)
+```
+
+    ## Warning: package 'purrr' was built under R version 4.1.3
+
+    ## 
+    ## Attaching package: 'purrr'
+
+    ## The following object is masked from 'package:data.table':
+    ## 
+    ##     transpose
+
+``` r
 stations <- fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
 ```
 
@@ -326,6 +339,48 @@ of looking at one variable at a time, look at the euclidean distance. If
 multiple stations show in the median, select the one located at the
 lowest latitude.
 
+``` r
+met_avg_lz <- data %>% 
+  group_by(STATE, USAFID) %>% 
+  summarize(
+    # can also use across and pass c(_colnames_) and function
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE)
+  )
+```
+
+    ## `summarise()` has grouped output by 'STATE'. You can override using the
+    ## `.groups` argument.
+
+``` r
+met_med_lz <- met_avg_lz %>% 
+  group_by(STATE) %>% 
+  summarize(
+    temp = median(temp, na.rm = TRUE),
+    wind.sp = median(wind.sp, na.rm = TRUE),
+    atm.press = median(atm.press, na.rm = TRUE)
+  )
+```
+
+``` r
+euclidean <- function(a, b) sqrt(sum((a - b)^2))
+
+euclid_distance <- function(state) {
+  print(state)
+  if (is.na(temp) | is.na(wind.sp) | is.na(atm.press)) {
+    return(NA)
+  }
+  state_values <- met_med_lz %>% 
+    filter(STATE == state) %>% 
+    select(c(temp, wind.sp, atm.press))
+  
+  values <- c(temp, wind.sp, atm.press)
+  
+  return(euclidean(values, state_values))
+}
+```
+
 Knit the doc and save it on GitHub.
 
 ## Question 3: In the middle?
@@ -352,6 +407,26 @@ to classify them according to the following criteria:
 -   Mid: temp >= 20 and temp \< 25
 -   High: temp >= 25
 
+``` r
+met_avg_lz <- data %>% 
+  group_by(STATE) %>% 
+  summarize(
+    records = n(),
+    missing = sum(is.na(temp) | is.na(wind.sp) | is.na(atm.press)),
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE),
+    stations = n_distinct(USAFID)
+  )
+
+met_avg_lz <- met_avg_lz %>% 
+  mutate(clf = case_when(
+    temp < 20 ~ "low",
+    temp >= 25 ~ "high",
+    TRUE ~ "mid"
+  ))
+```
+
 Once you are done with that, you can compute the following:
 
 -   Number of entries (records),
@@ -361,6 +436,40 @@ Once you are done with that, you can compute the following:
 -   Mean temperature, wind-speed, and atmospheric pressure.
 
 All by the levels described before.
+
+``` r
+met_avg_lz %>% 
+  group_by(clf) %>% 
+  summarize(
+    amount = sum(records, na.rm = TRUE),
+    missing = sum(missing, na.rm = TRUE),
+    stations_num = sum(stations, na.rm = TRUE),
+    states = n(),
+    temp = mean(temp, na.rm=TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE)
+  )
+```
+
+    ## Source: local data table [3 x 8]
+    ## Call:   `_DT4`[, .(records = .N, missing = sum(is.na(temp) | is.na(wind.sp) | 
+    ##     is.na(atm.press)), temp = mean(temp, na.rm = TRUE), wind.sp = mean(wind.sp, 
+    ##     na.rm = TRUE), atm.press = mean(atm.press, na.rm = TRUE), 
+    ##     stations = uniqueN(USAFID)), keyby = .(STATE)][, `:=`(clf = fcase(temp < 
+    ##     20, "low", temp >= 25, "high", rep(TRUE, .N), "mid"))][, 
+    ##     .(amount = sum(records, na.rm = TRUE), missing = sum(missing, 
+    ##         na.rm = TRUE), stations_num = sum(stations, na.rm = TRUE), 
+    ##         states = .N, temp = mean(temp, na.rm = TRUE), wind.sp = mean(wind.sp, 
+    ##             na.rm = TRUE), atm.press = mean(atm.press, na.rm = TRUE)), 
+    ##     keyby = .(clf)]
+    ## 
+    ##   clf    amount missing stations_num states  temp wind.sp atm.press
+    ##   <chr>   <int>   <int>        <int>  <int> <dbl>   <dbl>     <dbl>
+    ## 1 high   811126  575696          555     12  27.0    2.43     1014.
+    ## 2 low    430794  338632          259     11  18.7    2.55     1014.
+    ## 3 mid   1135423  759000          781     25  22.6    2.39     1015.
+    ## 
+    ## # Use as.data.table()/as.data.frame()/as_tibble() to access results
 
 Knit the document, commit your changes, and push them to GitHub.
 

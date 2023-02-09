@@ -98,6 +98,7 @@ library(dtplyr)
 library(dplyr)
 library(ggplot2)
 library(mgcv)
+library(purrr)
 ```
 
 ```{r}
@@ -216,8 +217,44 @@ Knit the document, commit your changes, and save it on GitHub. Don't forget to a
 Just like the previous question, you are asked to identify what is the most representative, the median, station per state. This time, instead of looking at one variable at a time, look at the euclidean distance. If multiple stations show in the median, select the one located at the lowest latitude.
 
 ```{r}
-
+met_avg_lz <- data %>% 
+  group_by(STATE, USAFID) %>% 
+  summarize(
+    # can also use across and pass c(_colnames_) and function
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE)
+  )
 ```
+```{r}
+met_med_lz <- met_avg_lz %>% 
+  group_by(STATE) %>% 
+  summarize(
+    temp = median(temp, na.rm = TRUE),
+    wind.sp = median(wind.sp, na.rm = TRUE),
+    atm.press = median(atm.press, na.rm = TRUE)
+  )
+```
+
+
+```{r}
+euclidean <- function(a, b) sqrt(sum((a - b)^2))
+
+euclid_distance <- function(state) {
+  print(state)
+  if (is.na(temp) | is.na(wind.sp) | is.na(atm.press)) {
+    return(NA)
+  }
+  state_values <- met_med_lz %>% 
+    filter(STATE == state) %>% 
+    select(c(temp, wind.sp, atm.press))
+  
+  values <- c(temp, wind.sp, atm.press)
+  
+  return(euclidean(values, state_values))
+}
+```
+
 
 Knit the doc and save it on GitHub.
 
@@ -242,7 +279,23 @@ Start by computing the states' average temperature. Use that measurement to clas
 - High: temp >= 25
 
 ```{r}
+met_avg_lz <- data %>% 
+  group_by(STATE) %>% 
+  summarize(
+    records = n(),
+    missing = sum(is.na(temp) | is.na(wind.sp) | is.na(atm.press)),
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE),
+    stations = n_distinct(USAFID)
+  )
 
+met_avg_lz <- met_avg_lz %>% 
+  mutate(clf = case_when(
+    temp < 20 ~ "low",
+    temp >= 25 ~ "high",
+    TRUE ~ "mid"
+  ))
 ```
 
 Once you are done with that, you can compute the following:
@@ -256,7 +309,17 @@ Once you are done with that, you can compute the following:
 All by the levels described before.
 
 ```{r}
-
+met_avg_lz %>% 
+  group_by(clf) %>% 
+  summarize(
+    amount = sum(records, na.rm = TRUE),
+    missing = sum(missing, na.rm = TRUE),
+    stations_num = sum(stations, na.rm = TRUE),
+    states = n(),
+    temp = mean(temp, na.rm=TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE)
+  )
 ```
 
 Knit the document, commit your changes, and push them to GitHub. 
