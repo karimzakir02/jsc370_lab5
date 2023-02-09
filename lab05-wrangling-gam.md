@@ -119,6 +119,12 @@ library(dtplyr)
     ## Warning: package 'dtplyr' was built under R version 4.1.3
 
 ``` r
+library(leaflet)
+```
+
+    ## Warning: package 'leaflet' was built under R version 4.1.3
+
+``` r
 library(dplyr)
 ```
 
@@ -408,9 +414,9 @@ df$diff <- t(distances)
 ```
 
 ``` r
-df %>%
-  group_by(STATE) %>%
-  filter(diff == min(diff, na.rm=TRUE))
+q2_df <- df %>%
+    group_by(STATE) %>%
+    filter(diff == min(diff, na.rm=TRUE))
 ```
 
     ## Warning in min(diff, na.rm = TRUE): no non-missing arguments to min; returning
@@ -418,6 +424,10 @@ df %>%
 
     ## Warning in min(diff, na.rm = TRUE): no non-missing arguments to min; returning
     ## Inf
+
+``` r
+q2_df
+```
 
     ## # A tibble: 46 x 6
     ## # Groups:   STATE [46]
@@ -444,6 +454,94 @@ mid-point of the state. Combining these with the stations you identified
 in the previous question, use `leaflet()` to visualize all \~100 points
 in the same figure, applying different colors for those identified in
 this question.
+
+``` r
+met_avg_coord <- data %>% 
+  group_by(STATE) %>% 
+  summarize(
+    # can also use across and pass c(_colnames_) and function
+    lat = mean(lat, na.rm = TRUE),
+    lon = mean(lon, na.rm = TRUE),
+  )
+```
+
+``` r
+euclidean <- function(a, b) sqrt(sum((a - b)^2))
+
+euclid_distance <- function(data) {
+  state <- data$STATE
+  lat <- data$lat
+  lon <- data$lon
+
+  if (is.na(lat) | is.na(lon)) {
+    return(NA)
+  }
+
+  state_values <- met_avg_coord %>% 
+    filter(STATE == state) %>% 
+    select(lat, lon) %>%
+    as.data.frame()
+  
+  
+  values <- c(lat, lon)
+  return(euclidean(values, state_values))
+}
+```
+
+``` r
+df <- data %>% 
+  group_by(STATE, USAFID) %>% 
+  summarize(
+    lat = median(lat, na.rm = TRUE),
+    lon = median(lon, na.rm=TRUE)
+  ) %>% 
+  as.data.frame() 
+```
+
+    ## `summarise()` has grouped output by 'STATE'. You can override using the
+    ## `.groups` argument.
+
+``` r
+distances <- df[, c(1, 3, 4)] %>% 
+  split(1:nrow(df)) %>% 
+  map(euclid_distance) %>% 
+  bind_rows()
+```
+
+``` r
+q2_points <- merge(q2_df, df, by.x="USAFID", by.y="USAFID", all.x=TRUE, all.y=FALSE) %>% select(lat, lon)
+q2_points$color = "RED"
+```
+
+``` r
+df$diff <- t(distances)
+```
+
+``` r
+df <- df %>%
+    group_by(STATE) %>%
+    filter(diff == min(diff, na.rm=TRUE))
+```
+
+``` r
+df <- df[, c(3, 4)]
+df$color = "BLUE"
+```
+
+``` r
+to_map <- rbind(df, q2_points)
+```
+
+``` r
+leaflet(to_map) %>% 
+  addTiles() %>% 
+  addCircles(lng = ~lon, lat = ~lat, color = ~color)
+```
+
+    ## PhantomJS not found. You can install it with webshot::install_phantomjs(). If it is installed, please make sure the phantomjs executable can be found via the PATH variable.
+
+<div class="leaflet html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-0aced4fd17f050d753f8" style="width:672px;height:480px;"></div>
+<script type="application/json" data-for="htmlwidget-0aced4fd17f050d753f8">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addCircles","args":[[33.178,35.258,34.257,36.78,39.05,41.51,39.133,28.474,32.633,41.691,44.889,40.483,40.711,38.065,37.578,30.718,41.876,38.981,44.533,43.322,45.147,38.096,32.321,45.807,35.582,48.39,40.961,43.567,40.033,35.003,38.051,42.207,40.28,35.417,42.6,40.85,41.597,33.967,44.381,36.009,31.106,40.219,37.358,44.204,47.104,44.359,39,43.064,26.585,33.212,31.183,29.709,32.516,34.383,32.167,33.812,31.536,36.047,34.498,35.593,35.831,37.152,36.162,38.137,39.472,40.033,39.643,39.674,37.9,40.708,39.551,37.307,41.91,41.533,41.736,41.334,42.643,41.453,42.267,41.465,42.554,41.986,41.117,40.068,42.542,42.147,43.205,44.45,43.344,44.359,45.543,45.443,44.339,45.698],[-86.782,-93.095,-111.339,-119.719,-105.51,-72.828,-75.467,-82.454,-83.6,-93.566,-116.101,-88.95,-86.375,-97.861,-84.77,-91.479,-71.021,-76.922,-69.667,-84.688,-94.507,-92.553,-90.078,-108.542,-79.101,-100.024,-98.314,-71.433,-74.35,-105.662,-117.09,-75.98,-83.115,-97.383,-123.364,-77.85,-71.412,-80.8,-100.285,-86.52,-98.196,-111.723,-78.438,-72.562,-122.287,-89.837,-80.274,-108.458,-81.861,-87.616,-90.471,-98.046,-92.041,-103.316,-110.883,-118.146,-82.507,-79.477,-82.71,-88.917,-90.646,-94.495,-97.089,-78.455,-76.17,-74.35,-79.916,-75.606,-85.967,-84.027,-97.651,-108.626,-70.729,-71.283,-72.651,-75.727,-77.056,-87.006,-84.467,-90.523,-92.401,-97.435,-111.966,-118.569,-113.766,-121.724,-71.503,-68.367,-72.518,-89.837,-94.051,-98.413,-105.541,-110.44],10,null,null,{"interactive":true,"className":"","stroke":true,"color":["BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","BLUE","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED","RED"],"fillOpacity":0.2},null,null,null,{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[26.585,48.39],"lng":[-123.364,-68.367]}},"evals":[],"jsHooks":[]}</script>
 
 Knit the doc and save it on GitHub.
 
@@ -506,7 +604,7 @@ met_avg_lz %>%
 ```
 
     ## Source: local data table [3 x 8]
-    ## Call:   `_DT4`[, .(records = .N, missing = sum(is.na(temp) | is.na(wind.sp) | 
+    ## Call:   `_DT6`[, .(records = .N, missing = sum(is.na(temp) | is.na(wind.sp) | 
     ##     is.na(atm.press)), temp = mean(temp, na.rm = TRUE), wind.sp = mean(wind.sp, 
     ##     na.rm = TRUE), atm.press = mean(atm.press, na.rm = TRUE), 
     ##     stations = uniqueN(USAFID)), keyby = .(STATE)][, `:=`(clf = fcase(temp < 
@@ -568,7 +666,7 @@ as.data.frame(met_avg_lz) %>%
 
     ## Warning: Removed 16 rows containing missing values (geom_point).
 
-![](lab05-wrangling-gam_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](lab05-wrangling-gam_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
 ``` r
 linear_model <- lm(temp ~ wind.sp, data=met_avg_lz)
