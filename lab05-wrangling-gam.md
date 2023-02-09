@@ -486,3 +486,88 @@ need the `mgcv` package and `gam()` function to do this.
 -   fit both a linear model and a spline model (use `gam()` with a cubic
     regression spline on wind speed). Summarize and plot the results
     from the models and interpret which model is the best fit and why.
+
+``` r
+met_avg_lz <- data %>% 
+  group_by(USAFID) %>% 
+  summarize(
+    temp = median(temp, na.rm = TRUE),
+    wind.sp = median(wind.sp, na.rm = TRUE),
+  )
+```
+
+``` r
+as.data.frame(met_avg_lz) %>% 
+  ggplot(mapping=aes(wind.sp, temp)) +
+  geom_point() +
+  geom_smooth(method='lm',col="red") +
+  geom_smooth(col="blue")
+```
+
+    ## `geom_smooth()` using formula 'y ~ x'
+
+    ## Warning: Removed 16 rows containing non-finite values (stat_smooth).
+
+    ## `geom_smooth()` using method = 'gam' and formula 'y ~ s(x, bs = "cs")'
+
+    ## Warning: Removed 16 rows containing non-finite values (stat_smooth).
+
+    ## Warning: Removed 16 rows containing missing values (geom_point).
+
+![](lab05-wrangling-gam_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+``` r
+linear_model <- lm(temp ~ wind.sp, data=met_avg_lz)
+summary(linear_model)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = temp ~ wind.sp, data = met_avg_lz)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -17.7243  -2.6518  -0.2309   2.7691  14.5052 
+    ## 
+    ## Coefficients:
+    ##             Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept) 22.23088    0.21779  102.08  < 2e-16 ***
+    ## wind.sp      0.48614    0.08212    5.92 3.94e-09 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 3.849 on 1577 degrees of freedom
+    ##   (16 observations deleted due to missingness)
+    ## Multiple R-squared:  0.02174,    Adjusted R-squared:  0.02112 
+    ## F-statistic: 35.05 on 1 and 1577 DF,  p-value: 3.941e-09
+
+``` r
+df <- as.data.frame(met_avg_lz)
+gam_model <- gam(temp ~ s(wind.sp, bs="cr", k=4), data=df)
+summary(gam_model)
+```
+
+    ## 
+    ## Family: gaussian 
+    ## Link function: identity 
+    ## 
+    ## Formula:
+    ## temp ~ s(wind.sp, bs = "cr", k = 4)
+    ## 
+    ## Parametric coefficients:
+    ##             Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept) 23.38566    0.09548   244.9   <2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Approximate significance of smooth terms:
+    ##              edf Ref.df    F p-value    
+    ## s(wind.sp) 2.967  2.999 27.8  <2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## R-sq.(adj) =  0.0489   Deviance explained = 5.07%
+    ## GCV =  14.43  Scale est. = 14.393    n = 1579
+
+The spline model is slightly better, since it explains 2% more variation
+in the response variable when compared to the linear model
