@@ -240,21 +240,53 @@ met_med_lz <- met_avg_lz %>%
 ```{r}
 euclidean <- function(a, b) sqrt(sum((a - b)^2))
 
-euclid_distance <- function(state) {
-  print(state)
+euclid_distance <- function(data) {
+  state <- data$STATE
+  temp <- data$temp
+  wind.sp <- data$wind.sp
+  atm.press <- data$atm.press
+
   if (is.na(temp) | is.na(wind.sp) | is.na(atm.press)) {
     return(NA)
   }
+
   state_values <- met_med_lz %>% 
     filter(STATE == state) %>% 
-    select(c(temp, wind.sp, atm.press))
+    select(c(temp, wind.sp, atm.press)) %>%
+    as.data.frame()
+  
   
   values <- c(temp, wind.sp, atm.press)
-  
+  tryCatch(euclidean(values, state_values), error = function(e) print(state_values))
   return(euclidean(values, state_values))
 }
 ```
 
+```{r}
+df <- met_avg_lz %>% 
+  select(c(STATE, temp, wind.sp, atm.press)) %>%
+  as.data.frame()
+
+distances <- df %>% 
+  split(1:nrow(df)) %>% 
+  map(euclid_distance) %>% 
+  bind_rows()
+```
+
+```{r}
+df <- met_avg_lz %>% 
+  select(c(STATE, USAFID, temp, wind.sp, atm.press)) %>%
+  as.data.frame()
+
+df$diff <- t(distances)
+```
+
+
+```{r}
+df %>%
+  group_by(STATE) %>%
+  filter(diff == min(diff, na.rm=TRUE))
+```
 
 Knit the doc and save it on GitHub.
 

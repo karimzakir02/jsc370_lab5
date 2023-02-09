@@ -366,20 +366,74 @@ met_med_lz <- met_avg_lz %>%
 ``` r
 euclidean <- function(a, b) sqrt(sum((a - b)^2))
 
-euclid_distance <- function(state) {
-  print(state)
+euclid_distance <- function(data) {
+  state <- data$STATE
+  temp <- data$temp
+  wind.sp <- data$wind.sp
+  atm.press <- data$atm.press
+
   if (is.na(temp) | is.na(wind.sp) | is.na(atm.press)) {
     return(NA)
   }
+
   state_values <- met_med_lz %>% 
     filter(STATE == state) %>% 
-    select(c(temp, wind.sp, atm.press))
+    select(c(temp, wind.sp, atm.press)) %>%
+    as.data.frame()
+  
   
   values <- c(temp, wind.sp, atm.press)
-  
+  tryCatch(euclidean(values, state_values), error = function(e) print(state_values))
   return(euclidean(values, state_values))
 }
 ```
+
+``` r
+df <- met_avg_lz %>% 
+  select(c(STATE, temp, wind.sp, atm.press)) %>%
+  as.data.frame()
+
+distances <- df %>% 
+  split(1:nrow(df)) %>% 
+  map(euclid_distance) %>% 
+  bind_rows()
+```
+
+``` r
+df <- met_avg_lz %>% 
+  select(c(STATE, USAFID, temp, wind.sp, atm.press)) %>%
+  as.data.frame()
+
+df$diff <- t(distances)
+```
+
+``` r
+df %>%
+  group_by(STATE) %>%
+  filter(diff == min(diff, na.rm=TRUE))
+```
+
+    ## Warning in min(diff, na.rm = TRUE): no non-missing arguments to min; returning
+    ## Inf
+
+    ## Warning in min(diff, na.rm = TRUE): no non-missing arguments to min; returning
+    ## Inf
+
+    ## # A tibble: 46 x 6
+    ## # Groups:   STATE [46]
+    ##    STATE USAFID  temp wind.sp atm.press diff[,1]
+    ##    <chr>  <int> <dbl>   <dbl>     <dbl>    <dbl>
+    ##  1 AL    722286  26.4    1.68     1015.   0.0561
+    ##  2 AR    723407  25.9    2.21     1015.   0.461 
+    ##  3 AZ    722745  30.3    3.31     1010.   0.233 
+    ##  4 CA    722970  22.8    2.33     1013.   0.300 
+    ##  5 CO    724767  22.0    2.78     1014.   0.944 
+    ##  6 CT    725087  22.6    2.13     1015.   0.346 
+    ##  7 DE    724180  24.6    2.75     1015.   0     
+    ##  8 FL    722106  27.5    2.71     1015.   0.0477
+    ##  9 GA    723160  26.6    1.68     1015.   0.312 
+    ## 10 IA    725480  21.4    2.76     1015.   0.199 
+    ## # ... with 36 more rows
 
 Knit the doc and save it on GitHub.
 
@@ -514,7 +568,7 @@ as.data.frame(met_avg_lz) %>%
 
     ## Warning: Removed 16 rows containing missing values (geom_point).
 
-![](lab05-wrangling-gam_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](lab05-wrangling-gam_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 ``` r
 linear_model <- lm(temp ~ wind.sp, data=met_avg_lz)
